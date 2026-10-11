@@ -49,32 +49,75 @@ class Node:
 
 
 def neighbor_joining(distances: np.ndarray, labels: list) -> Node:
-    """The Neighbor-Joining algorithm.
+  # start as collection of nodes with no children
+  nodes = []
+  for label in labels:
+    nodes.append(Node(label, None, 0, None, 0))
 
-    For the same results as in the later test dendrograms;
-    add new nodes to the end of the list/matrix and
-    in case of ties, use np.argmin to choose the joining pair.
+  distances = distances.copy()
 
-    Parameters
-    ----------
-    distances: np.ndarray
-        A 2d square, symmetric distance matrix containing distances between
-        data points. The diagonal entries should always be zero; d(x, x) = 0.
-    labels: list
-        A list of labels corresponding to entries in the distances matrix.
-        Use them to set names of nodes.
+  while len(nodes) > 2:
+    n = len(nodes)
 
-    Returns
-    -------
-    Node
-        A root node of the neighbor joining tree.
+    # total distance from each node to all others
+    row_sums = []
+    for i in range(n):
+      row_sums.append(sum(distances[i]))
 
-    """
-    
-    self.tree = Node()
+    # build the Q matrix, find the pair with smallest value
+    Q = np.zeros((n, n))
 
-    raise NotImplementedError()
+    for i in range(n):
+      for j in range(n):
+        if i == j:
+          Q[i, j] = float("inf")
+        else:
+          Q[i, j] = ((n - 2) * distances[i][j]- row_sums[i] - row_sums[j])
 
+    i, j = np.unravel_index(np.argmin(Q), Q.shape)
+
+    # get the branch lenghts and join the pair together
+    distance_i = (distances[i][j] / 2 + (row_sums[i] - row_sums[j]) / (2 * (n - 2)))
+    distance_j = distances[i][j] - distance_i
+
+    new_node = Node(f"Node{n}", nodes[i], distance_i, nodes[j], distance_j)
+
+    remaining_nodes = []
+    remaining_indices = []
+    for k in range(n):
+      if k != i and k != j:
+        remaining_nodes.append(nodes[k])
+        remaining_indices.append(k)
+
+    new_distances = []
+    for a in remaining_indices:
+      row = []
+      for b in remaining_indices:
+         row.append(distances[a][b])
+      new_distances.append(row)
+
+    # get the distances between new node and remaining nodes
+    new_row = []
+    for k in remaining_indices:
+       distance = (distances[i][k] + distances[j][k] - distances[i][j]) / 2
+       new_row.append(distance)
+
+    remaining_nodes.append(new_node)
+    for row in new_distances:
+      row.append(0)
+    new_distances.append([0] * len(remaining_nodes))
+
+    for k in range(len(new_row)):
+      new_distances[k][-1] = new_row[k]
+      new_distances[-1][k] = new_row[k]
+
+    nodes = remaining_nodes
+    distances = new_distances
+
+  # calculate half distance between two remaining nodes and return root node
+  half_distance = distances[0][1] / 2
+  root = Node("Root", nodes[0], half_distance, nodes[1], half_distance)
+  return root
 
 def plot_nj_tree(tree: Node, ax: Axes = None, **kwargs) -> None:
     """A function for plotting neighbor joining phylogeny dendrogram.
