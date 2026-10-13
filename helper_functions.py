@@ -1,6 +1,7 @@
 """Helper functions for HW3"""
 import numpy as np
 from copy import deepcopy
+import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 
 
@@ -120,30 +121,99 @@ def neighbor_joining(distances: np.ndarray, labels: list) -> Node:
   return root
 
 def plot_nj_tree(tree: Node, ax: Axes = None, **kwargs) -> None:
-    """A function for plotting neighbor joining phylogeny dendrogram.
+  if ax is None:
+    _, ax = plt.subplots(figsize=(10, 6))
 
-    Parameters
-    ----------
-    tree: Node
-        The root of the phylogenetic tree produced by `neighbor_joining(...)`.
-    ax: Axes
-        A matplotlib Axes object which should be used for plotting.
-    kwargs
-        Feel free to replace/use these with any additional arguments you need.
-        But make sure your function can work without them, for testing purposes.
+  # go through stack and collect all the leaves (no children)
+  leaves = []
+  stack = [tree]
+  while stack:
+    node = stack.pop()
 
-    Example
-    -------
-    >>> import matplotlib.pyplot as plt
-    >>>
-    >>> tree = neighbor_joining(distances)
-    >>> fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(8, 8))
-    >>> plot_nj_tree(tree=tree, ax=ax)
-    >>> fig.savefig("example.png")
+    if node.right is not None:
+      stack.append(node.right)
 
-    """
+    if node.left is not None:
+      stack.append(node.left)
 
-    return ax
+
+    if node.left is None and node.right is None:
+      leaves.append(node.name)
+
+  # give each leaf a vertical position
+  positions = {}
+  for i, name in enumerate(leaves):
+    positions[name] = i
+
+  # go through tree calculating each node horizontal position
+  stack = [(tree, 0)]
+  while stack:
+    node, x = stack.pop()
+
+    # if its a leaf, then draw it
+    if node.left is None and node.right is None:
+      ax.text(x, positions[node.name], str(node.name), va="center")
+      continue
+
+    # calculate children's horizontal position from parent's position and branch length
+    child_positions = []
+    if node.left is not None:
+      left_x = x + node.left_distance
+      stack.append((node.left, left_x))
+      child_positions.append((left_x, node.left))
+
+    if node.right is not None:
+      right_x = x + node.right_distance
+      stack.append((node.right, right_x))
+      child_positions.append((right_x, node.right))
+
+    # draw branch from current node to each child.
+    for child_x, child in child_positions:
+      # leaves use assigned vertical position, internal nodes calculate so branching part sits at middle
+      if child.left is None and child.right is None:
+        child_y = positions[child.name]
+      else:
+        child_leaves = []
+        search = [child]
+
+        while search:
+          current = search.pop()
+
+          if current.left is None and current.right is None:
+            child_leaves.append(positions[current.name])
+          else:
+            if current.left is not None:
+              search.append(current.left)
+            if current.right is not None:
+              search.append(current.right)
+
+        child_y = sum(child_leaves) / len(child_leaves)
+
+      ax.plot([x, child_x], [child_y, child_y], color="black")
+
+    # if current node has two children draw vertical line to show diverging branches
+    if len(child_positions) == 2:
+      ys = []
+
+      for child_x, child in child_positions:
+        search = [child]
+        child_leaves = []
+
+        while search:
+          current = search.pop()
+          if current.left is None and current.right is None:
+            child_leaves.append(positions[current.name])
+          else:
+            if current.left is not None:
+              search.append(current.left)
+            if current.right is not None:
+              search.append(current.right)
+
+        ys.append((sum(child_leaves) / len(child_leaves)))
+
+      ax.plot([x, x], [min(ys), max(ys)], color="black")
+
+  return ax
 
 
 def _find_a_parent_to_node(tree: Node, node: Node) -> tuple:
