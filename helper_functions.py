@@ -294,20 +294,56 @@ def reroot_tree(original_tree: Node, outgroup_node: Node) -> Node:
 
     return new_root
 
-
 def sort_children_by_leaves(tree: Node) -> None:
-    """Sort the children of a tree by their corresponding number of leaves.
+  stack = [tree]
 
-    The tree can be changed inplace.
+  while len(stack) > 0:
+    node = stack.pop()
 
-    Parameters
-    ----------
-    tree: Node
-        The root node of the tree.
+    if node is None:
+      continue
 
-    """
-    raise NotImplementedError()
+    left_leaf_count = 0
+    left_stack = [node.left]
 
+    while len(left_stack) > 0:
+      current = left_stack.pop()
+
+      if current is None:
+        continue
+      if current.left is None and current.right is None:
+        left_leaf_count = left_leaf_count + 1
+      else:
+        left_stack.append(current.left)
+        left_stack.append(current.right)
+
+    right_leaf_count = 0
+    right_stack = [node.right]
+    while len(right_stack) > 0:
+      current = right_stack.pop()
+
+      if current is None:
+        continue
+      if current.left is None and current.right is None:
+        right_leaf_count = right_leaf_count + 1
+      else:
+        right_stack.append(current.left)
+        right_stack.append(current.right)
+
+    if left_leaf_count > right_leaf_count:
+      tmp = node.left
+      node.left = node.right
+      node.right = tmp
+
+      tmp = node.left_distance
+      node.left_distance = node.right_distance
+      node.right_distance = tmp
+
+    if node.left is not None:
+      stack.append(node.left)
+
+    if node.right is not None:
+      stack.append(node.right)    
 
 def plot_nj_tree_radial(tree: Node, ax: Axes = None, **kwargs) -> None:
     """A function for plotting neighbor joining phylogeny dendrogram
