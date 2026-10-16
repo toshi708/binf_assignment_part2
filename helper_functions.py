@@ -369,3 +369,77 @@ def plot_nj_tree_radial(tree: Node, ax: Axes = None, **kwargs) -> None:
 
     """
     raise NotImplementedError()
+
+from Bio.Align import substitution_matrices
+
+blosum62 = substitution_matrices.load("BLOSUM62")
+
+# from assignment 1
+def global_alignment(seq1, seq2, scoring_function):
+  gap_penalty = -1
+
+  rows = len(seq1) + 1
+  cols = len(seq2) + 1
+
+  matrix = [[0] * cols for _ in range(rows)]
+  # save the direction like how the arrows did manually
+  direction = [[""] * cols for _ in range(rows)]
+
+  # create matrix
+  for i in range(1, rows):
+    matrix[i][0] = matrix[i - 1][0] + gap_penalty
+    direction[i][0] = "up"
+
+  for j in range(1, cols):
+    matrix[0][j] = matrix[0][j - 1] + gap_penalty
+    direction[0][j] = "left"
+
+  for i in range(1, rows):
+    for j in range(1, cols):
+      diagonal = (matrix[i - 1][j - 1] + scoring_function(seq1[i - 1], seq2[j - 1]))
+      up = matrix[i - 1][j] + gap_penalty
+      left = matrix[i][j - 1] + gap_penalty
+
+      if diagonal >= up and diagonal >= left:
+        matrix[i][j] = diagonal
+        direction[i][j] = "diagonal"
+
+      elif up >= diagonal and up >= left:
+        matrix[i][j] = up
+        direction[i][j] = "up"
+
+      else:
+        matrix[i][j] = left
+        direction[i][j] = "left"
+
+  # traceback
+  aligned_seq1 = ""
+  aligned_seq2 = ""
+
+  i = len(seq1)
+  j = len(seq2)
+
+  while i > 0 or j > 0:
+    if direction[i][j] == "diagonal":
+      aligned_seq1 = seq1[i - 1] + aligned_seq1
+      aligned_seq2 = seq2[j - 1] + aligned_seq2
+
+      i -= 1
+      j -= 1
+
+    elif direction[i][j] == "up":
+      aligned_seq1 = seq1[i - 1] + aligned_seq1
+      aligned_seq2 = "-" + aligned_seq2
+
+      i -= 1
+
+    elif direction[i][j] == "left":
+      aligned_seq1 = "-" + aligned_seq1
+      aligned_seq2 = seq2[j - 1] + aligned_seq2
+
+      j -= 1
+
+  return aligned_seq1, aligned_seq2, float(matrix[len(seq1)][len(seq2)])
+
+def scoring_function(aa_i, aa_j):
+  return blosum62[aa_i, aa_j]
